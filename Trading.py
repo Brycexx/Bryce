@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 
 df_price=pd.read_csv("adjusted.csv")
 df_price['date'] = pd.to_datetime(df_price['Date'], format='%Y%m%d')
@@ -77,15 +78,24 @@ df_return=(df_out/df_in)-1
 for date in df_return.index:
     df_port_return.loc[date]=(df_return.loc[date].sum())/int(0.2*((df_univ_daily.loc[date]==1).sum()))
 df_port_return.to_csv('df_port_return.csv')
-# df_port_return['return'] = pd.to_numeric(df_port_return['return'], errors='coerce')
-# df_port_return = df_port_return.dropna()
-annual_returns = df_port_return['return'].groupby(df_port_return.index.year).sum()
+df_port_return['return'] = pd.to_numeric(df_port_return['return'], errors='coerce')
+df_port_return = df_port_return.dropna()
+df_port_return['cumulative_net_value'] = df_port_return['return'].add(1).groupby(df_port_return.index.year).cumprod()
+annual_returns=df_port_return['cumulative_net_value'].sub(1).resample('A').last()
+
 annual_vol = df_port_return['return'].groupby(df_port_return.index.year).std()
 annual_returns.to_csv('annual_returns.csv')
 annual_vol.to_csv('annual_vol')
+
+# 将收益率转化为百分数形式
+def to_percent(y, position):
+    return "{:.1%}".format(y)
+
 # plot
 plt.figure(figsize=(10, 6))
 plt.plot(annual_returns, label='Annual Returns')
+formatter = mticker.FuncFormatter(to_percent)
+plt.gca().yaxis.set_major_formatter(formatter)
 plt.xlabel('Date')
 plt.ylabel('Return')
 plt.title('Annual Returns Over Time')
